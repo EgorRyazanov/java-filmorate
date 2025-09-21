@@ -16,7 +16,7 @@ class FilmControllerTest {
     private FilmController controller;
 
     @BeforeEach
-    void BeforeEach() {
+    void beforeEach() {
         controller = new FilmController();
     }
 

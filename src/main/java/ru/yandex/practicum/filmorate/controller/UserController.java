@@ -7,8 +7,8 @@ import ru.yandex.practicum.filmorate.errors.NotFoundException;
 import ru.yandex.practicum.filmorate.errors.ValidationError;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.utils.ErrorText;
+import ru.yandex.practicum.filmorate.utils.UserValidation;
 
-import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +28,7 @@ public class UserController {
     @PostMapping
     public User create(@RequestBody User user) {
         log.info("Получен запрос на создание пользователя");
-        if (!isUserValid(user)) {
+        if (!UserValidation.isUserValid(user)) {
             log.error("Произошла ошибка валидации");
             throw new ValidationError(ErrorText.validationError);
         }
@@ -50,7 +50,7 @@ public class UserController {
             throw new NotFoundException(ErrorText.notFoundError);
         }
 
-        if (!isUserValid(user)) {
+        if (!UserValidation.isUserValid(user)) {
             log.error("Произошла ошибка валидации");
             throw new ValidationError(ErrorText.validationError);
         }
@@ -62,10 +62,6 @@ public class UserController {
         users.put(user.getId(), user);
         log.info("Запрос на обновление пользователя завершился успешно");
         return user;
-    }
-
-    private Boolean isUserValid(User user) {
-        return !user.getEmail().isEmpty() && user.getEmail().contains("@") && !user.getLogin().isEmpty() && !user.getLogin().contains(" ") && user.getBirthday().isBefore(LocalDate.now());
     }
 
     private Integer getNextId() {

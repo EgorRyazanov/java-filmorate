@@ -7,8 +7,8 @@ import ru.yandex.practicum.filmorate.errors.NotFoundException;
 import ru.yandex.practicum.filmorate.errors.ValidationError;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.utils.ErrorText;
+import ru.yandex.practicum.filmorate.utils.FilmValidation;
 
-import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,7 +28,7 @@ public class FilmController {
     @PostMapping
     public Film create(@RequestBody Film film) {
         log.info("Получен запрос на создание фильма");
-        if (!isFilmValid(film)) {
+        if (!FilmValidation.isFilmValid(film)) {
             log.error("Произошла ошибка валидации");
             throw new ValidationError(ErrorText.validationError);
         }
@@ -47,17 +47,13 @@ public class FilmController {
             throw new NotFoundException(ErrorText.notFoundError);
         }
 
-        if (!isFilmValid(film)) {
+        if (!FilmValidation.isFilmValid(film)) {
             log.error("Произошла ошибка валидации");
             throw new ValidationError(ErrorText.validationError);
         }
         films.put(film.getId(), film);
         log.info("Запрос на обновление фильма завершился успешно");
         return film;
-    }
-
-    private Boolean isFilmValid(Film film) {
-        return !film.getName().isEmpty() && film.getDescription().length() <= 200 && film.getReleaseDate().isAfter(LocalDate.of(1895, 12, 28)) && film.getDuration() > 0;
     }
 
 

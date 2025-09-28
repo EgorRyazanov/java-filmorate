@@ -16,6 +16,7 @@ import java.util.List;
 @Service
 public class UserService {
     private final Logger log = LoggerFactory.getLogger(UserService.class);
+
     private final UserStorage userStorage;
 
     @Autowired
@@ -40,7 +41,9 @@ public class UserService {
             throw new NotFoundException();
         }
 
-        return userStorage.getFriends(id).stream().map(userStorage::getUserById).toList();
+        return userStorage.getFriends(id).stream()
+                .map(userStorage::getUserById)
+                .toList();
     }
 
     public List<User> getCommonFriends(Integer id, Integer otherId) {

@@ -10,9 +10,10 @@ import java.util.*;
 
 @Component
 public class InMemoryUserStorage implements UserStorage {
+    private final Logger log = LoggerFactory.getLogger(InMemoryUserStorage.class);
+
     private final Map<Integer, User> users = new HashMap<>();
     private final Map<Integer, Set<Integer>> friends = new HashMap<>();
-    private final Logger log = LoggerFactory.getLogger(InMemoryUserStorage.class);
 
     public List<User> getAllUsers() {
         return users.values().stream().toList();

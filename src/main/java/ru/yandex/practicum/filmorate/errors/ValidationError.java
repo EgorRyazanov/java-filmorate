@@ -1,3 +1,4 @@
 package ru.yandex.practicum.filmorate.errors;
 
-public class ValidationError extends RuntimeException {}
+public class ValidationError extends RuntimeException {
+}

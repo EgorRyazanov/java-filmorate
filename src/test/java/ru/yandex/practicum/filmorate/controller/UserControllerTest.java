@@ -5,9 +5,13 @@ import org.junit.jupiter.api.Test;
 import ru.yandex.practicum.filmorate.errors.NotFoundException;
 import ru.yandex.practicum.filmorate.errors.ValidationError;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.model.UserStorage;
+import ru.yandex.practicum.filmorate.service.UserService;
+import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
 
 import java.time.LocalDate;
-import java.util.Collection;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -17,7 +21,9 @@ class UserControllerTest {
 
     @BeforeEach
     void beforeEach() {
-        controller = new UserController();
+        UserStorage storage = new InMemoryUserStorage();
+        UserService service = new UserService(storage);
+        controller = new UserController(service);
     }
 
     private User validUser() {
@@ -35,7 +41,7 @@ class UserControllerTest {
         assertEquals(1, createdUser.getId());
         assertEquals("User Name", createdUser.getName());
 
-        Collection<User> all = controller.findAll();
+        var all = controller.findAll();
         assertEquals(1, all.size(), "пользователь должен сохраняться во внутреннем хранилище");
     }
 
@@ -153,5 +159,86 @@ class UserControllerTest {
         controller.create(validUser());
 
         assertEquals(2, controller.findAll().size());
+    }
+
+    @Test
+    void shouldFindById() {
+        User created = controller.create(validUser());
+        User found = controller.findById(created.getId());
+
+        assertEquals(created.getId(), found.getId());
+        assertEquals(created.getEmail(), found.getEmail());
+    }
+
+    @Test
+    void shouldAddAndDeleteFriend() {
+        User user1 = controller.create(validUser());
+        User user2 = controller.create(validUser());
+
+        controller.addFriend(user1.getId(), user2.getId());
+
+        var friendsOfU1 = controller.getFriends(user1.getId());
+        var friendsOfU2 = controller.getFriends(user2.getId());
+
+        assertEquals(1, friendsOfU1.size());
+        assertEquals(user2.getId(), friendsOfU1.getFirst().getId());
+
+        assertEquals(1, friendsOfU2.size());
+        assertEquals(user1.getId(), friendsOfU2.getFirst().getId());
+
+        controller.deleteFriend(user1.getId(), user2.getId());
+
+        assertTrue(controller.getFriends(user1.getId()).isEmpty());
+        assertTrue(controller.getFriends(user2.getId()).isEmpty());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenAddFriendOfUnknownUser() {
+        User user1 = controller.create(validUser());
+        assertThrows(NotFoundException.class, () -> controller.addFriend(user1.getId(), 999));
+        assertThrows(NotFoundException.class, () -> controller.addFriend(999, user1.getId()));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenDeleteFriendOfUnknownUser() {
+        User user1 = controller.create(validUser());
+        assertThrows(NotFoundException.class, () -> controller.deleteFriend(user1.getId(), 999));
+        assertThrows(NotFoundException.class, () -> controller.deleteFriend(999, user1.getId()));
+    }
+
+    @Test
+    void shouldReturnFriends() {
+        User user1 = controller.create(validUser());
+        User user2 = controller.create(validUser());
+        User user3 = controller.create(validUser());
+
+        controller.addFriend(user1.getId(), user2.getId());
+        controller.addFriend(user1.getId(), user3.getId());
+
+        var friends = controller.getFriends(user1.getId());
+        var ids = friends.stream().map(User::getId).collect(Collectors.toSet());
+
+        assertEquals(Set.of(user2.getId(), user3.getId()), ids);
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenGetFriendsForUnknownUser() {
+        assertThrows(NotFoundException.class, () -> controller.getFriends(999));
+    }
+
+    @Test
+    void shouldReturnCommonFriends() {
+        User user1 = controller.create(validUser());
+        User user2 = controller.create(validUser());
+        User user3 = controller.create(validUser());
+        User user4 = controller.create(validUser());
+
+        controller.addFriend(user1.getId(), user3.getId());
+        controller.addFriend(user2.getId(), user3.getId());
+        controller.addFriend(user1.getId(), user4.getId());
+
+        var commonAB = controller.getCommonFriends(user1.getId(), user2.getId());
+        assertEquals(1, commonAB.size());
+        assertEquals(user3.getId(), commonAB.getFirst().getId());
     }
 }

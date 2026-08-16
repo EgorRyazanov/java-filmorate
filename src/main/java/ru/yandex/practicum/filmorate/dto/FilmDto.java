@@ -1,4 +1,4 @@
-package ru.yandex.practicum.filmorate.model;
+package ru.yandex.practicum.filmorate.dto;
 
 import lombok.Data;
 
@@ -6,12 +6,12 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Data
-public class Film {
+public class FilmDto {
     private Long id;
     private String name;
     private String description;
     private LocalDate releaseDate;
     private Integer duration;
-    private List<Genre> genres;
-    private Rating mpa;
+    private List<GenreDto> genres;
+    private RatingDto mpa;
 }

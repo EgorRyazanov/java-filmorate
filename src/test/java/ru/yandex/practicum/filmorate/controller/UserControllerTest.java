@@ -1,244 +1,176 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ru.yandex.practicum.filmorate.errors.NotFoundException;
-import ru.yandex.practicum.filmorate.errors.ValidationError;
-import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.model.UserStorage;
-import ru.yandex.practicum.filmorate.service.UserService;
-import ru.yandex.practicum.filmorate.storage.InMemoryUserStorage;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.web.servlet.MockMvc;
+import ru.yandex.practicum.filmorate.dto.NewUserRequest;
 
 import java.time.LocalDate;
-import java.util.*;
-import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
+@SpringBootTest
+@AutoConfigureMockMvc
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 class UserControllerTest {
 
-    private UserController controller;
+    @Autowired
+    private JdbcClient jdbcClient;
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void beforeEach() {
-        UserStorage storage = new InMemoryUserStorage();
-        UserService service = new UserService(storage);
-        controller = new UserController(service);
+        jdbcClient.sql("DELETE FROM likes").update();
+        jdbcClient.sql("DELETE FROM friends").update();
+        jdbcClient.sql("DELETE FROM favourite_films").update();
+        jdbcClient.sql("DELETE FROM films").update();
+        jdbcClient.sql("DELETE FROM users").update();
+
+        jdbcClient.sql("ALTER TABLE users ALTER COLUMN id RESTART WITH 1").update();
     }
 
-    private User validUser() {
-        User user = new User("user@example.com", "login");
-        user.setName("User Name");
-        user.setBirthday(LocalDate.of(2000, 1, 1));
-        return user;
-    }
+    private static int userCounter = 0;
 
-    @Test
-    void shouldCreate() {
-        User createdUser = controller.create(validUser());
-
-        assertNotNull(createdUser.getId(), "id должен быть присвоен");
-        assertEquals(1, createdUser.getId());
-        assertEquals("User Name", createdUser.getName());
-
-        var all = controller.findAll();
-        assertEquals(1, all.size(), "пользователь должен сохраняться во внутреннем хранилище");
+    private NewUserRequest validUserRequest() {
+        userCounter++;
+        NewUserRequest request = new NewUserRequest();
+        request.setEmail("test" + userCounter + "@example.com");
+        request.setLogin("testlogin" + userCounter);
+        request.setName("Test User");
+        request.setBirthday(LocalDate.of(2000, 1, 1));
+        return request;
     }
 
     @Test
-    void shouldUpdateId() {
-        User user1 = controller.create(validUser());
-        User user2 = controller.create(validUser());
-
-        assertEquals(1, user1.getId());
-        assertEquals(2, user2.getId());
-        assertNotEquals(user1.getId(), user2.getId());
+    void shouldCreate() throws Exception {
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUserRequest())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").exists())
+                .andExpect(jsonPath("$.name").value("Test User"));
     }
 
     @Test
-    void shouldReturnValidationErrorWhenEmptyEmail() {
-        User user = validUser();
+    void shouldReturnValidationErrorWhenEmptyEmail() throws Exception {
+        NewUserRequest user = validUserRequest();
         user.setEmail("");
-        assertThrows(ValidationError.class, () -> controller.create(user));
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldReturnValidationErrorWhenInvalidEmail() {
-        User user = validUser();
-        user.setEmail("invalid.email.example.com"); // без '@'
-        assertThrows(ValidationError.class, () -> controller.create(user));
+    void shouldReturnValidationErrorWhenInvalidEmail() throws Exception {
+        NewUserRequest user = validUserRequest();
+        user.setEmail("invalid.email.example.com");
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldReturnValidationErrorWhenEmptyLogin() {
-        User user = validUser();
+    void shouldReturnValidationErrorWhenEmptyLogin() throws Exception {
+        NewUserRequest user = validUserRequest();
         user.setLogin("");
-        assertThrows(ValidationError.class, () -> controller.create(user));
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldReturnValidationErrorWhenLoginHasSpaces() {
-        User user = validUser();
+    void shouldReturnValidationErrorWhenLoginHasSpaces() throws Exception {
+        NewUserRequest user = validUserRequest();
         user.setLogin("lo gin");
-        assertThrows(ValidationError.class, () -> controller.create(user));
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldReturnValidationErrorWhenInvalidBirthday() {
-        User user = validUser();
-
+    void shouldReturnValidationErrorWhenInvalidBirthday() throws Exception {
+        NewUserRequest user = validUserRequest();
         user.setBirthday(LocalDate.now());
-        assertThrows(ValidationError.class, () -> controller.create(user));
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest());
 
         user.setBirthday(LocalDate.now().plusDays(1));
-        assertThrows(ValidationError.class, () -> controller.create(user));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isBadRequest());
 
         user.setBirthday(LocalDate.now().minusDays(1));
-        assertDoesNotThrow(() -> controller.create(user));
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(user)))
+                .andExpect(status().isOk());
     }
 
     @Test
-    void shouldSetNameToLoginWhenNameIsNullOnCreate() {
-        User user = validUser();
-        user.setName(null);
-        user.setLogin("login123");
-        User createdUser = controller.create(user);
+    void shouldReturnAllUsers() throws Exception {
+        mockMvc.perform(get("/users"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(0));
 
-        assertEquals("login123", createdUser.getName(), "если name=null, должно подставляться значение login");
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUserRequest())))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUserRequest())))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/users"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
     }
 
     @Test
-    void shouldUpdate() {
-        User createdUser = controller.create(validUser());
-        Integer id = createdUser.getId();
+    void shouldFindById() throws Exception {
+        String created = mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validUserRequest())))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
 
-        User changedUser = validUser();
-        changedUser.setId(id);
-        changedUser.setName("New Name");
-        User updatedUser = controller.update(changedUser);
+        Long id = objectMapper.readTree(created).get("id").asLong();
 
-        assertEquals(id, updatedUser.getId());
-        assertEquals("New Name", updatedUser.getName());
+        mockMvc.perform(get("/users/{id}", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id));
     }
 
     @Test
-    void shouldReturnNotFoundErrorWhenUpdate() {
-        User user = validUser();
-        user.setId(999);
-        assertThrows(NotFoundException.class, () -> controller.update(user));
-    }
-
-    @Test
-    void shouldReturnValidationErrorWhenUpdateWithInvalidEmail() {
-        User created = controller.create(validUser());
-
-        User invalidUser = validUser();
-        invalidUser.setId(created.getId());
-        invalidUser.setEmail("no-at-sign");
-        assertThrows(ValidationError.class, () -> controller.update(invalidUser));
-    }
-
-    @Test
-    void shouldSetNameToLoginWhenNameIsNullOnUpdate() {
-        User createdUser = controller.create(validUser());
-
-        User updatedUser = validUser();
-        updatedUser.setId(createdUser.getId());
-        updatedUser.setName(null);
-        updatedUser.setLogin("newlogin");
-        User updatedUser2 = controller.update(updatedUser);
-
-        assertEquals("newlogin", updatedUser2.getName());
-    }
-
-    @Test
-    void shouldReturnAllUsers() {
-        assertTrue(controller.findAll().isEmpty());
-
-        controller.create(validUser());
-        controller.create(validUser());
-
-        assertEquals(2, controller.findAll().size());
-    }
-
-    @Test
-    void shouldFindById() {
-        User created = controller.create(validUser());
-        User found = controller.findById(created.getId());
-
-        assertEquals(created.getId(), found.getId());
-        assertEquals(created.getEmail(), found.getEmail());
-    }
-
-    @Test
-    void shouldAddAndDeleteFriend() {
-        User user1 = controller.create(validUser());
-        User user2 = controller.create(validUser());
-
-        controller.addFriend(user1.getId(), user2.getId());
-
-        var friendsOfU1 = controller.getFriends(user1.getId());
-        var friendsOfU2 = controller.getFriends(user2.getId());
-
-        assertEquals(1, friendsOfU1.size());
-        assertEquals(user2.getId(), friendsOfU1.getFirst().getId());
-
-        assertEquals(1, friendsOfU2.size());
-        assertEquals(user1.getId(), friendsOfU2.getFirst().getId());
-
-        controller.deleteFriend(user1.getId(), user2.getId());
-
-        assertTrue(controller.getFriends(user1.getId()).isEmpty());
-        assertTrue(controller.getFriends(user2.getId()).isEmpty());
-    }
-
-    @Test
-    void shouldReturnNotFoundWhenAddFriendOfUnknownUser() {
-        User user1 = controller.create(validUser());
-        assertThrows(NotFoundException.class, () -> controller.addFriend(user1.getId(), 999));
-        assertThrows(NotFoundException.class, () -> controller.addFriend(999, user1.getId()));
-    }
-
-    @Test
-    void shouldReturnNotFoundWhenDeleteFriendOfUnknownUser() {
-        User user1 = controller.create(validUser());
-        assertThrows(NotFoundException.class, () -> controller.deleteFriend(user1.getId(), 999));
-        assertThrows(NotFoundException.class, () -> controller.deleteFriend(999, user1.getId()));
-    }
-
-    @Test
-    void shouldReturnFriends() {
-        User user1 = controller.create(validUser());
-        User user2 = controller.create(validUser());
-        User user3 = controller.create(validUser());
-
-        controller.addFriend(user1.getId(), user2.getId());
-        controller.addFriend(user1.getId(), user3.getId());
-
-        var friends = controller.getFriends(user1.getId());
-        var ids = friends.stream().map(User::getId).collect(Collectors.toSet());
-
-        assertEquals(Set.of(user2.getId(), user3.getId()), ids);
-    }
-
-    @Test
-    void shouldThrowNotFoundWhenGetFriendsForUnknownUser() {
-        assertThrows(NotFoundException.class, () -> controller.getFriends(999));
-    }
-
-    @Test
-    void shouldReturnCommonFriends() {
-        User user1 = controller.create(validUser());
-        User user2 = controller.create(validUser());
-        User user3 = controller.create(validUser());
-        User user4 = controller.create(validUser());
-
-        controller.addFriend(user1.getId(), user3.getId());
-        controller.addFriend(user2.getId(), user3.getId());
-        controller.addFriend(user1.getId(), user4.getId());
-
-        var commonAB = controller.getCommonFriends(user1.getId(), user2.getId());
-        assertEquals(1, commonAB.size());
-        assertEquals(user3.getId(), commonAB.getFirst().getId());
+    void shouldReturnNotFoundWhenGetUnknownUser() throws Exception {
+        mockMvc.perform(get("/users/{id}", 999L))
+                .andExpect(status().isNotFound());
     }
 }

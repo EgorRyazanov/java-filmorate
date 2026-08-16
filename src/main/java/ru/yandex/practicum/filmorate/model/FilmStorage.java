@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.model;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface FilmStorage {
     /* Получение всех фильмов */
@@ -13,17 +14,17 @@ public interface FilmStorage {
     Film updateFilm(Film film);
 
     /* Существует ли фильм */
-    boolean containsFilm(Integer id);
+    boolean containsFilm(Long id);
 
     /* Получение фильма по ID */
-    Film getFilmById(Integer id);
+    Optional<Film> getFilmById(Long id);
 
     /* Добавить лайк */
-    void addLike(Integer id, Integer userId);
+    void addLike(Long id, Long userId);
 
     /* Удалить лайк */
-    void deleteLike(Integer id, Integer userId);
+    void deleteLike(Long id, Long userId);
 
     /* Возвращает список популярных фильмов */
-    List<Film> getPopularFilms(Integer count);
+    List<Film> getPopularFilms(Long count);
 }

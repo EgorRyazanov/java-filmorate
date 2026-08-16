@@ -12,22 +12,25 @@ import java.util.*;
 public class InMemoryUserStorage implements UserStorage {
     private final Logger log = LoggerFactory.getLogger(InMemoryUserStorage.class);
 
-    private final Map<Integer, User> users = new HashMap<>();
-    private final Map<Integer, Set<Integer>> friends = new HashMap<>();
+    private final Map<Long, User> users = new HashMap<>();
+    private final Map<Long, Set<Long>> friends = new HashMap<>();
 
     public List<User> getAllUsers() {
         return users.values().stream().toList();
     }
 
-    public User getUserById(Integer id) {
-        return this.users.get(id);
+    public Optional<User> getUserById(Long id) {
+        return Optional.of(this.users.get(id));
     }
 
-    public Set<Integer> getFriends(Integer id) {
-        return this.friends.getOrDefault(id, Collections.emptySet());
+    public Collection<User> getFriends(Long userId) {
+        Collection<Long> userFriendIds = this.friends.get(userId);
+        return userFriendIds.stream().map(
+            users::get
+        ).toList();
     }
 
-    public void addFriend(Integer id, Integer friendId) {
+    public void addFriend(Long id, Long friendId) {
         if (friends.containsKey(id)) {
             friends.get(id).add(friendId);
         } else {
@@ -35,7 +38,7 @@ public class InMemoryUserStorage implements UserStorage {
         }
     }
 
-    public void deleteFriend(Integer id, Integer friendId) {
+    public void deleteFriend(Long id, Long friendId) {
         if (friends.containsKey(id)) {
             friends.get(id).remove(friendId);
         }
@@ -60,15 +63,15 @@ public class InMemoryUserStorage implements UserStorage {
         return user;
     }
 
-    public boolean containsUser(Integer id) {
-        return users.containsKey(id);
+    private Long getNextId() {
+        long currentMaxId = users.keySet()
+                .stream()
+                .max(Long::compare)
+                .orElse(0L);
+        return ++currentMaxId;
     }
 
-    private Integer getNextId() {
-        int currentMaxId = users.keySet()
-                .stream()
-                .max(Integer::compare)
-                .orElse(0);
-        return ++currentMaxId;
+    public boolean containsUser(Long id) {
+        return users.containsKey(id);
     }
 }

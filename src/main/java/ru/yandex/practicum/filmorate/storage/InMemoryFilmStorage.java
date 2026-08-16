@@ -8,19 +8,19 @@ import java.util.*;
 
 @Component
 public class InMemoryFilmStorage implements FilmStorage {
-    private final Map<Integer, Film> films = new HashMap<>();
-    private final Map<Integer, Set<Integer>> likes = new HashMap<>();
+    private final Map<Long, Film> films = new HashMap<>();
+    private final Map<Long, Set<Long>> likes = new HashMap<>();
 
     public List<Film> getAllFilms() {
         return films.values().stream().toList();
     }
 
-    public Film getFilmById(Integer id) {
-        return this.films.get(id);
+    public Optional<Film> getFilmById(Long id) {
+        return Optional.of(films.get(id));
     }
 
     @Override
-    public void addLike(Integer id, Integer userId) {
+    public void addLike(Long id, Long userId) {
         if (likes.containsKey(id)) {
             likes.get(id).add(userId);
         } else {
@@ -29,20 +29,21 @@ public class InMemoryFilmStorage implements FilmStorage {
     }
 
     @Override
-    public void deleteLike(Integer id, Integer userId) {
+    public void deleteLike(Long id, Long userId) {
         if (likes.containsKey(id)) {
             likes.get(id).remove(userId);
         }
     }
 
     @Override
-    public List<Film> getPopularFilms(Integer count) {
+    public List<Film> getPopularFilms(Long count) {
         return likes.entrySet().stream()
-                .sorted(Comparator.comparingInt((Map.Entry<Integer, Set<Integer>> e) -> e.getValue().size())
+                .sorted(Comparator.comparingInt((Map.Entry<Long, Set<Long>> e) -> e.getValue().size())
                         .reversed())
                 .limit(count)
                 .map(Map.Entry::getKey)
                 .map(this::getFilmById)
+                .map(Optional::get)
                 .toList();
     }
 
@@ -57,15 +58,15 @@ public class InMemoryFilmStorage implements FilmStorage {
         return film;
     }
 
-    public boolean containsFilm(Integer id) {
+    public boolean containsFilm(Long id) {
         return films.containsKey(id);
     }
 
-    private Integer getNextId() {
-        int currentMaxId = films.keySet()
+    private Long getNextId() {
+        long currentMaxId = films.keySet()
                 .stream()
-                .max(Integer::compare)
-                .orElse(0);
+                .max(Long::compare)
+                .orElse(0L);
         return ++currentMaxId;
     }
 }

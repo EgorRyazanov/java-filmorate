@@ -1,103 +1,89 @@
 package ru.yandex.practicum.filmorate.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.dto.NewUserRequest;
+import ru.yandex.practicum.filmorate.dto.UpdateUserRequest;
+import ru.yandex.practicum.filmorate.dto.UserDto;
 import ru.yandex.practicum.filmorate.errors.NotFoundException;
-import ru.yandex.practicum.filmorate.errors.ValidationError;
-import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.mapper.UserMapper;
 import ru.yandex.practicum.filmorate.model.UserStorage;
-import ru.yandex.practicum.filmorate.utils.UserValidation;
 
-import java.util.Collection;
 import java.util.List;
 
 @Service
+@Slf4j
 public class UserService {
-    private final Logger log = LoggerFactory.getLogger(UserService.class);
-
     private final UserStorage userStorage;
+    private final UserMapper userMapper;
 
-    @Autowired
-    public UserService(UserStorage userStorage) {
+    public UserService(@Qualifier("UserDataBaseImplementation") UserStorage userStorage, UserMapper userMapper) {
         this.userStorage = userStorage;
+        this.userMapper = userMapper;
     }
 
-    public Collection<User> getAllUsers() {
+    public List<UserDto> getAllUsers() {
         log.trace("Получение всех пользователей");
-        return userStorage.getAllUsers();
+        return userStorage.getAllUsers().stream().map(this.userMapper::mapToUserDto).toList();
     }
 
-    public User getUserById(Integer id) {
+    public UserDto getUserById(Long id) {
         log.trace("Получение пользователя по ID");
-        return userStorage.getUserById(id);
+        return userStorage.getUserById(id)
+            .map(this.userMapper::mapToUserDto)
+            .orElseThrow(NotFoundException::new);
     }
 
-    public List<User> getFriends(Integer id) {
+    public List<UserDto> getFriends(Long id) {
         log.trace("Получение друзей пользователя");
         if (!userStorage.containsUser(id)) {
             log.error("Объект не найден");
             throw new NotFoundException();
         }
 
-        return userStorage.getFriends(id).stream()
-                .map(userStorage::getUserById)
-                .toList();
+        return userStorage.getFriends(id).stream().map(this.userMapper::mapToUserDto).toList();
     }
 
-    public List<User> getCommonFriends(Integer id, Integer otherId) {
+    public List<UserDto> getCommonFriends(Long id, Long otherId) {
         log.trace("Получение общих друзья с пользователем");
         return userStorage.getFriends(id).stream()
                 .filter(friendId -> userStorage.getFriends(otherId).contains(friendId))
-                .map(userStorage::getUserById)
+                .map(this.userMapper::mapToUserDto)
                 .toList();
     }
 
-    public void addFriend(Integer id, Integer friendId) {
+    public void addFriend(Long id, Long friendId) {
         log.trace("Добавление в друзья");
         if (!userStorage.containsUser(id) || !userStorage.containsUser(friendId)) {
             log.error("Объекта не было найдено");
             throw new NotFoundException();
-        } else {
-            userStorage.addFriend(id, friendId);
-            userStorage.addFriend(friendId, id);
         }
+        userStorage.addFriend(id, friendId);
     }
 
-    public void deleteFriend(Integer id, Integer friendId) {
+    public void deleteFriend(Long id, Long friendId) {
         log.trace("Удаление из друзей");
         if (!userStorage.containsUser(id) || !userStorage.containsUser(friendId)) {
             log.error("Объекта не было найдено");
             throw new NotFoundException();
-        } else {
-            userStorage.deleteFriend(id, friendId);
-            userStorage.deleteFriend(friendId, id);
         }
+        userStorage.deleteFriend(id, friendId);
     }
 
-    public User createUser(User user) {
+    public UserDto createUser(NewUserRequest newUser) {
         log.trace("Создание пользователя");
-        if (!UserValidation.isUserValid(user)) {
-            log.error("Произошла ошибка валидации");
-            throw new ValidationError();
-        }
 
-        return this.userStorage.createUser(user);
+        return this.userMapper.mapToUserDto(this.userStorage.createUser(this.userMapper.mapToUser(newUser)));
     }
 
-    public User updateUser(User user) {
+    public UserDto updateUser(UpdateUserRequest updatedUser) {
         log.trace("Обновление пользователя");
-        if (!this.userStorage.containsUser(user.getId())) {
+        if (!this.userStorage.containsUser(updatedUser.getId())) {
             log.error("Объект не был найден");
             throw new NotFoundException();
         }
 
-        if (!UserValidation.isUserValid(user)) {
-            log.error("Произошла ошибка валидации");
-            throw new ValidationError();
-        }
-
-        return this.userStorage.updateUser(user);
+        return this.userMapper.mapToUserDto(this.userStorage.updateUser(this.userMapper.mapToUser(updatedUser)));
     }
 }

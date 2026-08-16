@@ -1,8 +1,9 @@
 package ru.yandex.practicum.filmorate.model;
 
 
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 
 public interface UserStorage {
     /* Получение всех пользователей */
@@ -15,17 +16,17 @@ public interface UserStorage {
     User updateUser(User user);
 
     /* Существует ли пользователь */
-    boolean containsUser(Integer id);
+    boolean containsUser(Long id);
 
     /* Получить пользователя по ID */
-    User getUserById(Integer id);
+    Optional<User> getUserById(Long id);
 
     /* Добавить в друзья */
-    void addFriend(Integer id, Integer friendId);
+    void addFriend(Long id, Long friendId);
 
     /* Удалить из друзей */
-    void deleteFriend(Integer id, Integer friendId);
+    void deleteFriend(Long id, Long friendId);
 
     /* Получить список друзей пользователя */
-    Set<Integer> getFriends(Integer id);
+    Collection<User> getFriends(Long id);
 }

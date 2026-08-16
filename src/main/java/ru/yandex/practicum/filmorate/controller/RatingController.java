@@ -1,0 +1,35 @@
+package ru.yandex.practicum.filmorate.controller;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import ru.yandex.practicum.filmorate.dto.RatingDto;
+import ru.yandex.practicum.filmorate.service.RatingService;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/mpa")
+@Slf4j
+public class RatingController {
+    private final RatingService ratingService;
+
+    RatingController(RatingService ratingService) {
+        this.ratingService = ratingService;
+    }
+
+    @GetMapping
+    public List<RatingDto> findAll() {
+        log.info("Получен запрос на получение всех рейтингов");
+        return this.ratingService.getAllRatings();
+    }
+
+
+    @GetMapping("/{ratingId}")
+    public RatingDto findById(@PathVariable("ratingId") Long id) {
+        log.info("Получен запрос на получение рейтинга");
+        return this.ratingService.getById(id);
+    }
+}
